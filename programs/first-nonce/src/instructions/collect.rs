@@ -3,15 +3,18 @@ use anchor_lang::system_program::{
     allocate, assign, create_account, transfer, Allocate, Assign, CreateAccount, Transfer,
 };
 use anchor_spl::token::{
-    self, close_account, initialize_account3, CloseAccount, InitializeAccount3, Mint, Token,
-    TokenAccount,
+    self, close_account, initialize_account3, CloseAccount, InitializeAccount3, Mint as SplMint,
+    Token,
 };
+use anchor_spl::token_interface::Mint;
 
 use crate::{
     constants::*,
     cp_amm::{self, ClaimPositionFeeAccounts},
     errors::NonceError,
-    events::FeesCollected,
+    events::{FeesCollected, ReserveRefunded},
+    funds,
+    instructions::open::token_amount,
     state::*,
 };
 
@@ -20,7 +23,11 @@ use crate::{
 /// the platform treasury.
 ///
 /// Flow: create a temporary wSOL account at PDA ["fee", coin] (rent from the vault) -> claim
-/// into it -> close it into the vault (unwraps fees + rent) -> pay out the fee amount.
+/// into it -> close it into the vault (unwraps fees + rent) -> pay out the fee amount. Any
+/// unused open reserve still in the vault goes to the launcher with its share.
+///
+/// Remaining account for Token-2022 coins: the Token-2022 program (cp-amm needs the coin's
+/// token program).
 #[derive(Accounts)]
 pub struct Collect<'info> {
     pub cranker: Signer<'info>,
@@ -39,25 +46,23 @@ pub struct Collect<'info> {
     )]
     pub coin: Box<Account<'info, Coin>>,
 
-    pub mint: Box<Account<'info, Mint>>,
+    /// Classic SPL or Token-2022 mint (`coin.token_2022`).
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut, seeds = [VAULT_SEED, coin.key().as_ref()], bump = coin.vault_bump)]
     pub vault: SystemAccount<'info>,
 
-    #[account(
-        mut,
-        associated_token::mint = mint,
-        associated_token::authority = vault,
-        associated_token::token_program = token_program,
-    )]
-    pub vault_token_a: Box<Account<'info, TokenAccount>>,
+    /// CHECK: a coin token account owned by the vault (its ATA); checked in the handler. It
+    /// receives the token A side of the fee claim, which is always 0 (fees are SOL only).
+    #[account(mut)]
+    pub vault_token_a: UncheckedAccount<'info>,
 
     /// CHECK: temporary wSOL account, created and closed inside this instruction.
     #[account(mut, seeds = [FEE_SEED, coin.key().as_ref()], bump)]
     pub fee_account: UncheckedAccount<'info>,
 
     #[account(address = NATIVE_MINT)]
-    pub native_mint: Box<Account<'info, Mint>>,
+    pub native_mint: Box<Account<'info, SplMint>>,
 
     /// CHECK: has_one on coin.
     #[account(mut)]
@@ -164,16 +169,32 @@ fn create_pda_account<'info>(
     Ok(())
 }
 
-fn token_amount(info: &AccountInfo) -> Result<u64> {
-    let data = info.try_borrow_data()?;
-    require!(data.len() >= 72, NonceError::InvalidTokenAccount);
-    let mut b = [0u8; 8];
-    b.copy_from_slice(&data[64..72]);
-    Ok(u64::from_le_bytes(b))
-}
-
-pub fn handle_collect(ctx: Context<Collect>) -> Result<()> {
+pub fn handle_collect<'info>(ctx: Context<'info, Collect<'info>>) -> Result<()> {
     require!(ctx.accounts.coin.state == STATE_OPENED, NonceError::NotOpen);
+
+    // the coin's token program: classic, or Token-2022 passed as the first remaining account
+    let token_a_program = if ctx.accounts.coin.token_2022 {
+        let p = ctx
+            .remaining_accounts
+            .first()
+            .ok_or(NonceError::InvalidTokenProgram)?;
+        require_keys_eq!(p.key(), TOKEN_2022_PROGRAM_ID, NonceError::InvalidTokenProgram);
+        p.clone()
+    } else {
+        ctx.accounts.token_program.to_account_info()
+    };
+    {
+        // vault_token_a: a token account of this mint, owned by the vault, under that program
+        let info = ctx.accounts.vault_token_a.to_account_info();
+        require_keys_eq!(*info.owner, token_a_program.key(), NonceError::InvalidTokenAccount);
+        let data = info.try_borrow_data()?;
+        require!(
+            data.len() >= 64
+                && data[0..32] == ctx.accounts.mint.key().to_bytes()
+                && data[32..64] == ctx.accounts.vault.key().to_bytes(),
+            NonceError::InvalidTokenAccount
+        );
+    }
 
     let coin_key = ctx.accounts.coin.key();
     let vault_bump = ctx.accounts.coin.vault_bump;
@@ -188,7 +209,7 @@ pub fn handle_collect(ctx: Context<Collect>) -> Result<()> {
     create_pda_account(
         &vault,
         &fee_account,
-        TOKEN_ACCOUNT_LEN,
+        TOKEN_ACCOUNT_LEN as u64,
         &token::ID,
         &[vault_seeds, fee_seeds],
     )?;
@@ -215,7 +236,7 @@ pub fn handle_collect(ctx: Context<Collect>) -> Result<()> {
             token_b_mint: ctx.accounts.native_mint.to_account_info(),
             position_nft_account: ctx.accounts.position_nft_account.to_account_info(),
             signer: vault.clone(),
-            token_a_program: ctx.accounts.token_program.to_account_info(),
+            token_a_program: token_a_program.clone(),
             token_b_program: ctx.accounts.token_program.to_account_info(),
             event_authority: ctx.accounts.event_authority.to_account_info(),
             program: ctx.accounts.cp_amm_program.to_account_info(),
@@ -235,23 +256,10 @@ pub fn handle_collect(ctx: Context<Collect>) -> Result<()> {
         &[vault_seeds],
     ))?;
 
-    // 4. split
+    // 4. split: treasury first, then the launcher's share plus any unused reserve
     let launcher_share = ((amount as u128) * (ctx.accounts.coin.launcher_fee_bps as u128)
         / (BPS as u128)) as u64;
     let treasury_share = amount - launcher_share;
-    if launcher_share > 0 {
-        transfer(
-            CpiContext::new_with_signer(
-                anchor_lang::system_program::ID,
-                Transfer {
-                    from: vault.clone(),
-                    to: ctx.accounts.launcher.to_account_info(),
-                },
-                &[vault_seeds],
-            ),
-            launcher_share,
-        )?;
-    }
     if treasury_share > 0 {
         transfer(
             CpiContext::new_with_signer(
@@ -264,6 +272,22 @@ pub fn handle_collect(ctx: Context<Collect>) -> Result<()> {
             ),
             treasury_share,
         )?;
+    }
+    let refund = funds::pay_launcher(
+        &vault,
+        &ctx.accounts.launcher.to_account_info(),
+        vault_seeds,
+        launcher_share,
+    )?;
+    if refund > 0 {
+        let launcher = ctx.accounts.coin.launcher;
+        let coin = &mut ctx.accounts.coin;
+        coin.reserve_refunded = coin.reserve_refunded.saturating_add(refund);
+        emit!(ReserveRefunded {
+            coin: coin_key,
+            launcher,
+            amount: refund,
+        });
     }
 
     let coin = &mut ctx.accounts.coin;

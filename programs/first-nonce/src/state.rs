@@ -136,7 +136,17 @@ pub struct Coin {
     /// accounts close at claim, so counting accounts undercounts.
     pub miners_total: u64,
 
-    pub reserved: [u8; 64],
+    /// The mint is a Token-2022 mint with its metadata in the mint (metadata pointer + token
+    /// metadata extensions). False: a classic SPL mint with Metaplex metadata (coins launched
+    /// before this field existed read false from what used to be reserved zero bytes).
+    pub token_2022: bool,
+    /// Lamports the launcher parked in the vault for `open` (0 for coins launched before this
+    /// field existed: they parked `LEGACY_OPEN_RESERVE_LAMPORTS`).
+    pub open_reserve_lamports: u64,
+    /// Lamports `open` and `collect` have returned from the vault to the launcher so far.
+    pub reserve_refunded: u64,
+
+    pub reserved: [u8; 47],
 }
 
 impl Coin {
@@ -300,7 +310,10 @@ mod tests {
             block_shares: [0u32; 90],
             block_targets: [0u64; 90],
             miners_total: 0,
-            reserved: [0u8; 64],
+            token_2022: false,
+            open_reserve_lamports: 0,
+            reserved: [0u8; 47],
+            reserve_refunded: 0,
         }
     }
 
@@ -373,6 +386,13 @@ mod tests {
         assert_eq!(c.block_targets[2], DEFAULT_START_TARGET * 4);
         assert_eq!(c.current_block, 9);
         assert_eq!(c.target, (DEFAULT_START_TARGET as u128 * 4u128.pow(8)).min(u64::MAX as u128) as u64);
+    }
+
+    /// The Coin account size must not change: live coins (the mainnet canary) were created at
+    /// 2,290 bytes and the site lists coins with a dataSize filter.
+    #[test]
+    fn coin_size_is_stable() {
+        assert_eq!(8 + Coin::INIT_SPACE, 2_290);
     }
 
     #[test]

@@ -8,6 +8,7 @@ pub mod constants;
 pub mod cp_amm;
 pub mod errors;
 pub mod events;
+pub mod funds;
 pub mod instructions;
 pub mod metadata;
 pub mod mining;
@@ -35,7 +36,9 @@ pub mod first_nonce {
         instructions::admin::handle_update_config(ctx, args)
     }
 
-    /// Create a coin: mint, immutable metadata, and block 0 of the dig.
+    /// Create a coin: mint, immutable metadata, and block 0 of the dig. Pass Token-2022 as
+    /// `token_program` for a Token-2022 mint with its metadata in the mint (the default in the
+    /// SDK), or the classic token program for a classic mint with Metaplex metadata.
     pub fn launch(ctx: Context<Launch>, args: LaunchArgs) -> Result<()> {
         instructions::launch::handle_launch(ctx, args)
     }
@@ -50,8 +53,9 @@ pub mod first_nonce {
         instructions::crank::handle_crank(ctx)
     }
 
-    /// Permissionless after the dig: create and lock the Meteora pool.
-    pub fn open(ctx: Context<Open>) -> Result<()> {
+    /// Permissionless after the dig: create and lock the Meteora pool. Optional remaining
+    /// account: the coin's launcher (writable), to get the unused open reserve back right away.
+    pub fn open<'info>(ctx: Context<'info, Open<'info>>) -> Result<()> {
         instructions::open::handle_open(ctx)
     }
 
@@ -60,8 +64,10 @@ pub mod first_nonce {
         instructions::claim::handle_claim(ctx)
     }
 
-    /// Permissionless: claim pool fees and split them launcher / treasury.
-    pub fn collect(ctx: Context<Collect>) -> Result<()> {
+    /// Permissionless: claim pool fees and split them launcher / treasury. Also returns any
+    /// unused open reserve to the launcher. Remaining account for Token-2022 coins: the
+    /// Token-2022 program.
+    pub fn collect<'info>(ctx: Context<'info, Collect<'info>>) -> Result<()> {
         instructions::collect::handle_collect(ctx)
     }
 

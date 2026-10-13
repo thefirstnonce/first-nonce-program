@@ -36,11 +36,40 @@ pub const STATE_OPENED: u8 = 2;
 
 // ---------------------------------------------------------------- money
 pub const BPS: u64 = 10_000;
-/// Lamports the launcher parks in the coin's vault PDA at launch. The vault pays
-/// rent for the Meteora pool accounts at open (~0.0224 SOL measured from the
-/// cp-amm account sizes) and for the temporary fee account on every collect
-/// (refunded in the same instruction).
-pub const OPEN_RESERVE_LAMPORTS: u64 = 35_000_000;
+// ---------------------------------------------------------------- open reserve
+// The launcher parks just enough SOL in the coin's vault PDA at launch for everything `open`
+// creates, priced with the Rent sysvar at launch time (see `funds::open_reserve`). The vault pays
+// rent for its own two token accounts and for every account cp-amm creates, so whoever cranks
+// `open` pays only the transaction fee. What `open` doesn't use goes back to the launcher.
+//
+// Account sizes, measured on mainnet (canary coin 2026-10-13) and in the e2e test against the
+// mainnet cp-amm binary (`program/TESTING.md`):
+/// cp-amm `Pool` (8 + Pool::INIT_SPACE).
+pub const CP_POOL_LEN: usize = 1_112;
+/// cp-amm `Position` (8 + Position::INIT_SPACE).
+pub const CP_POSITION_LEN: usize = 408;
+/// cp-amm position NFT mint: Token-2022 mint with close authority, metadata pointer and
+/// cp-amm's own token metadata.
+pub const CP_POSITION_NFT_MINT_LEN: usize = 465;
+/// SPL token account (also the size of a Token-2022 account without extensions).
+pub const TOKEN_ACCOUNT_LEN: usize = 165;
+/// Token-2022 associated token account: 165 + account type + ImmutableOwner extension.
+pub const TOKEN_2022_ATA_LEN: usize = 170;
+/// Headroom on top of the measured need, refunded at `open`. Covers ~200 bytes of growth in
+/// cp-amm's accounts at today's rent.
+pub const OPEN_RESERVE_MARGIN_LAMPORTS: u64 = 1_000_000;
+/// The pre-upgrade flat reserve. Coins launched before the reserve was sized per launch hold
+/// this (their `Coin.open_reserve_lamports` reads 0).
+pub const LEGACY_OPEN_RESERVE_LAMPORTS: u64 = 35_000_000;
+
+/// Token-2022 mint with the metadata pointer extension: 165 (base mint padded to the account
+/// size) + 1 (account type) + 4 (TLV header) + 64 (pointer authority + address).
+pub const MINT_2022_WITH_POINTER_LEN: usize = 234;
+/// TLV header (4) + fixed part of the TokenMetadata value: update authority (32), mint (32),
+/// three borsh string length prefixes (12) and the empty additional_metadata vec (4).
+pub const TOKEN_METADATA_FIXED_LEN: usize = 84;
+/// Classic SPL mint.
+pub const MINT_LEN: usize = 82;
 
 // ---------------------------------------------------------------- metadata limits (Metaplex)
 pub const MAX_NAME_LEN: usize = 32;
@@ -76,5 +105,3 @@ pub const SLOT_HASHES_ID: Pubkey = pubkey!("SysvarS1otHashes11111111111111111111
 pub const NATIVE_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
 pub const TOKEN_2022_PROGRAM_ID: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
-/// SPL token account size.
-pub const TOKEN_ACCOUNT_LEN: u64 = 165;

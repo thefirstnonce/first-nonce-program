@@ -1,57 +1,64 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer, Transfer};
 use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{self, burn, mint_to, sync_native, Burn, Mint, MintTo, SyncNative, Token, TokenAccount},
+    associated_token::{create_idempotent, AssociatedToken, Create},
+    token::{self, close_account, sync_native, CloseAccount, Mint as SplMint, SyncNative, Token},
+    token_interface::{self, Burn, Mint, MintTo},
 };
 
 use crate::{
     constants::*,
     cp_amm::{self, *},
     errors::NonceError,
-    events::{BlockAdvanced, CoinOpened},
-    mining,
+    events::{BlockAdvanced, CoinOpened, ReserveRefunded},
+    funds, mining,
     state::*,
 };
+
+/// Token amount of an SPL / Token-2022 token account (same base layout).
+pub(crate) fn token_amount(info: &AccountInfo) -> Result<u64> {
+    let data = info.try_borrow_data()?;
+    require!(data.len() >= 72, NonceError::InvalidTokenAccount);
+    let mut b = [0u8; 8];
+    b.copy_from_slice(&data[64..72]);
+    Ok(u64::from_le_bytes(b))
+}
 
 /// Permissionless once the last block's window has passed. Mints the 80% pool supply to the
 /// vault PDA and creates a single-sided Meteora DAMM v2 customizable pool (coin / wSOL) whose
 /// only position is owned by the vault PDA and permanently locked.
+///
+/// Everything is paid from the open reserve in the vault, so the cranker pays only the
+/// transaction fee. Optional remaining account: the coin's launcher (writable). If it is
+/// passed, the unused reserve goes back to the launcher here; otherwise at the next `collect`.
 #[derive(Accounts)]
 pub struct Open<'info> {
-    /// Pays rent for the vault's two associated token accounts and 1 lamport of wSOL.
+    /// Pays only the transaction fee (writable for compatibility with existing clients).
     #[account(mut)]
     pub cranker: Signer<'info>,
 
     #[account(mut, seeds = [COIN_SEED, coin.mint.as_ref()], bump = coin.bump, has_one = mint)]
     pub coin: Box<Account<'info, Coin>>,
 
+    /// Classic SPL or Token-2022 mint (`coin.token_2022`).
     #[account(mut)]
-    pub mint: Box<Account<'info, Mint>>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut, seeds = [VAULT_SEED, coin.key().as_ref()], bump = coin.vault_bump)]
     pub vault: SystemAccount<'info>,
 
-    #[account(
-        init_if_needed,
-        payer = cranker,
-        associated_token::mint = mint,
-        associated_token::authority = vault,
-        associated_token::token_program = token_program,
-    )]
-    pub vault_token_a: Box<Account<'info, TokenAccount>>,
+    /// CHECK: the vault's coin ATA (under the coin's token program). Created here, paid by the
+    /// vault; the ATA program checks the address.
+    #[account(mut)]
+    pub vault_token_a: UncheckedAccount<'info>,
 
-    #[account(
-        init_if_needed,
-        payer = cranker,
-        associated_token::mint = native_mint,
-        associated_token::authority = vault,
-        associated_token::token_program = token_program,
-    )]
-    pub vault_wsol: Box<Account<'info, TokenAccount>>,
+    /// CHECK: the vault's wSOL ATA. Created here, paid by the vault, closed again at the end;
+    /// the ATA program checks the address.
+    #[account(mut)]
+    pub vault_wsol: UncheckedAccount<'info>,
 
     #[account(address = NATIVE_MINT)]
-    pub native_mint: Box<Account<'info, Mint>>,
+    pub native_mint: Box<Account<'info, SplMint>>,
 
     /// CHECK: our PDA; cp-amm creates it as the token-2022 position NFT mint (we sign for it).
     #[account(mut, seeds = [POSITION_NFT_SEED, coin.key().as_ref()], bump)]
@@ -95,7 +102,8 @@ pub struct Open<'info> {
 
     pub token_program: Program<'info, Token>,
 
-    /// CHECK: address checked.
+    /// CHECK: address checked. The position NFT program, and the coin's token program for
+    /// Token-2022 coins.
     #[account(address = TOKEN_2022_PROGRAM_ID)]
     pub token_2022_program: UncheckedAccount<'info>,
 
@@ -103,7 +111,7 @@ pub struct Open<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handle_open(ctx: Context<Open>) -> Result<()> {
+pub fn handle_open<'info>(ctx: Context<'info, Open<'info>>) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
     let slot_hash = mining::read_slot_hash(&ctx.accounts.slot_hashes.to_account_info())?;
     let coin_key = ctx.accounts.coin.key();
@@ -131,10 +139,51 @@ pub fn handle_open(ctx: Context<Open>) -> Result<()> {
     let vault_seeds: &[&[u8]] = &[VAULT_SEED, coin_key.as_ref(), &[vault_bump]];
     let nft_seeds: &[&[u8]] = &[POSITION_NFT_SEED, coin_key.as_ref(), &[nft_bump]];
 
-    // 1. mint the 80% pool supply to the vault
-    mint_to(
+    // the coin's token program
+    let token_a_program = if ctx.accounts.coin.token_2022 {
+        ctx.accounts.token_2022_program.to_account_info()
+    } else {
+        ctx.accounts.token_program.to_account_info()
+    };
+    require_keys_eq!(
+        *ctx.accounts.mint.to_account_info().owner,
+        token_a_program.key(),
+        NonceError::InvalidTokenProgram
+    );
+    let classic_program = ctx.accounts.token_program.to_account_info();
+    let vault_info = ctx.accounts.vault.to_account_info();
+
+    // 1. the vault's two token accounts, paid from the reserve
+    for (ata, mint, program) in [
+        (
+            ctx.accounts.vault_token_a.to_account_info(),
+            ctx.accounts.mint.to_account_info(),
+            token_a_program.clone(),
+        ),
+        (
+            ctx.accounts.vault_wsol.to_account_info(),
+            ctx.accounts.native_mint.to_account_info(),
+            classic_program.clone(),
+        ),
+    ] {
+        create_idempotent(CpiContext::new_with_signer(
+            anchor_spl::associated_token::ID,
+            Create {
+                payer: vault_info.clone(),
+                associated_token: ata,
+                authority: vault_info.clone(),
+                mint,
+                system_program: ctx.accounts.system_program.to_account_info(),
+                token_program: program,
+            },
+            &[vault_seeds],
+        ))?;
+    }
+
+    // 2. mint the 80% pool supply to the vault
+    token_interface::mint_to(
         CpiContext::new_with_signer(
-            token::ID,
+            token_a_program.key(),
             MintTo {
                 mint: ctx.accounts.mint.to_account_info(),
                 to: ctx.accounts.vault_token_a.to_account_info(),
@@ -145,16 +194,17 @@ pub fn handle_open(ctx: Context<Open>) -> Result<()> {
         POOL_SUPPLY,
     )?;
 
-    // 2. cp-amm always transfers max(amount, 1) of each token from the payer ("prove
-    //    ownership of token mints"), so the vault needs 1 lamport of wSOL.
-    if ctx.accounts.vault_wsol.amount == 0 {
+    // cp-amm always transfers max(amount, 1) of each token from the payer ("prove ownership of
+    // token mints"), so the vault needs 1 lamport of wSOL.
+    if token_amount(&ctx.accounts.vault_wsol.to_account_info())? == 0 {
         transfer(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 anchor_lang::system_program::ID,
                 Transfer {
-                    from: ctx.accounts.cranker.to_account_info(),
+                    from: vault_info.clone(),
                     to: ctx.accounts.vault_wsol.to_account_info(),
                 },
+                &[vault_seeds],
             ),
             1,
         )?;
@@ -189,7 +239,6 @@ pub fn handle_open(ctx: Context<Open>) -> Result<()> {
         activation_point: None, // trading starts now
     };
 
-    let vault_info = ctx.accounts.vault.to_account_info();
     cp_amm::initialize_customizable_pool(
         &InitializeCustomizablePoolAccounts {
             creator: vault_info.clone(),
@@ -205,8 +254,8 @@ pub fn handle_open(ctx: Context<Open>) -> Result<()> {
             token_b_vault: ctx.accounts.token_b_vault.to_account_info(),
             payer_token_a: ctx.accounts.vault_token_a.to_account_info(),
             payer_token_b: ctx.accounts.vault_wsol.to_account_info(),
-            token_a_program: ctx.accounts.token_program.to_account_info(),
-            token_b_program: ctx.accounts.token_program.to_account_info(),
+            token_a_program: token_a_program.clone(),
+            token_b_program: classic_program.clone(),
             token_2022_program: ctx.accounts.token_2022_program.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             event_authority: ctx.accounts.event_authority.to_account_info(),
@@ -231,12 +280,11 @@ pub fn handle_open(ctx: Context<Open>) -> Result<()> {
     )?;
 
     // 5. burn the rounding remainder that did not go into the pool
-    ctx.accounts.vault_token_a.reload()?;
-    let leftover = ctx.accounts.vault_token_a.amount;
+    let leftover = token_amount(&ctx.accounts.vault_token_a.to_account_info())?;
     if leftover > 0 {
-        burn(
+        token_interface::burn(
             CpiContext::new_with_signer(
-                token::ID,
+                token_a_program.key(),
                 Burn {
                     mint: ctx.accounts.mint.to_account_info(),
                     from: ctx.accounts.vault_token_a.to_account_info(),
@@ -246,6 +294,33 @@ pub fn handle_open(ctx: Context<Open>) -> Result<()> {
             ),
             leftover,
         )?;
+    }
+
+    // 6. close the (now empty) wSOL account: its rent goes back into the vault
+    close_account(CpiContext::new_with_signer(
+        token::ID,
+        CloseAccount {
+            account: ctx.accounts.vault_wsol.to_account_info(),
+            destination: vault_info.clone(),
+            authority: vault_info.clone(),
+        },
+        &[vault_seeds],
+    ))?;
+
+    // 7. the unused reserve goes back to the launcher, if the caller passed the launcher
+    let launcher = ctx.accounts.coin.launcher;
+    if let Some(launcher_info) = ctx.remaining_accounts.first() {
+        require_keys_eq!(launcher_info.key(), launcher, NonceError::InvalidLauncher);
+        let refund = funds::pay_launcher(&vault_info, launcher_info, vault_seeds, 0)?;
+        if refund > 0 {
+            let coin = &mut ctx.accounts.coin;
+            coin.reserve_refunded = coin.reserve_refunded.saturating_add(refund);
+            emit!(ReserveRefunded {
+                coin: coin_key,
+                launcher,
+                amount: refund,
+            });
+        }
     }
 
     let coin = &mut ctx.accounts.coin;

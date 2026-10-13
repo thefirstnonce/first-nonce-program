@@ -54,4 +54,8 @@ pub enum NonceError {
     BlockClosed,
     #[msg("This block is not open yet")]
     BlockNotOpen,
+    #[msg("Wrong token program for this coin's mint")]
+    InvalidTokenProgram,
+    #[msg("Account is not this coin's launcher")]
+    InvalidLauncher,
 }

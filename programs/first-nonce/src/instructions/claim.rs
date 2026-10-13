@@ -1,7 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, mint_to, set_authority, Mint, MintTo, SetAuthority, Token, TokenAccount},
+    token_interface::{
+        mint_to, set_authority, spl_token_2022::instruction::AuthorityType, Mint, MintTo,
+        SetAuthority, TokenAccount, TokenInterface,
+    },
 };
 
 use crate::{constants::*, errors::NonceError, events::Claimed, state::*};
@@ -17,8 +20,9 @@ pub struct Claim<'info> {
     #[account(mut, seeds = [COIN_SEED, coin.mint.as_ref()], bump = coin.bump, has_one = mint)]
     pub coin: Box<Account<'info, Coin>>,
 
-    #[account(mut)]
-    pub mint: Box<Account<'info, Mint>>,
+    /// Classic SPL or Token-2022 mint; `token_program` must be its program.
+    #[account(mut, mint::token_program = token_program)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: bound through the miner PDA seeds.
     pub beneficiary: UncheckedAccount<'info>,
@@ -42,9 +46,10 @@ pub struct Claim<'info> {
         associated_token::authority = beneficiary,
         associated_token::token_program = token_program,
     )]
-    pub beneficiary_ata: Box<Account<'info, TokenAccount>>,
+    pub beneficiary_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    pub token_program: Program<'info, Token>,
+    /// The coin's token program (classic or Token-2022).
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
@@ -66,7 +71,7 @@ pub fn handle_claim(ctx: Context<Claim>) -> Result<()> {
         let coin_seeds: &[&[u8]] = &[COIN_SEED, mint_key.as_ref(), &[coin_bump]];
         mint_to(
             CpiContext::new_with_signer(
-                token::ID,
+                ctx.accounts.token_program.key(),
                 MintTo {
                     mint: ctx.accounts.mint.to_account_info(),
                     to: ctx.accounts.beneficiary_ata.to_account_info(),
@@ -98,10 +103,11 @@ pub struct Seal<'info> {
     #[account(seeds = [COIN_SEED, coin.mint.as_ref()], bump = coin.bump, has_one = mint)]
     pub coin: Box<Account<'info, Coin>>,
 
-    #[account(mut)]
-    pub mint: Box<Account<'info, Mint>>,
+    #[account(mut, mint::token_program = token_program)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
 
-    pub token_program: Program<'info, Token>,
+    /// The coin's token program (classic or Token-2022).
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn handle_seal(ctx: Context<Seal>) -> Result<()> {
@@ -112,14 +118,14 @@ pub fn handle_seal(ctx: Context<Seal>) -> Result<()> {
     let coin_seeds: &[&[u8]] = &[COIN_SEED, mint_key.as_ref(), &[coin.bump]];
     set_authority(
         CpiContext::new_with_signer(
-            token::ID,
+            ctx.accounts.token_program.key(),
             SetAuthority {
                 current_authority: ctx.accounts.coin.to_account_info(),
                 account_or_mint: ctx.accounts.mint.to_account_info(),
             },
             &[coin_seeds],
         ),
-        token::spl_token::instruction::AuthorityType::MintTokens,
+        AuthorityType::MintTokens,
         None,
     )?;
     Ok(())

@@ -52,6 +52,9 @@
         },
         {
           "name": "mint",
+          "docs": [
+            "Classic SPL or Token-2022 mint; `token_program` must be its program."
+          ],
           "writable": true,
           "relations": [
             "coin"
@@ -149,7 +152,9 @@
         },
         {
           "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "docs": [
+            "The coin's token program (classic or Token-2022)."
+          ]
         },
         {
           "name": "associated_token_program",
@@ -165,7 +170,9 @@
     {
       "name": "collect",
       "docs": [
-        "Permissionless: claim pool fees and split them launcher / treasury."
+        "Permissionless: claim pool fees and split them launcher / treasury. Also returns any",
+        "unused open reserve to the launcher. Remaining account for Token-2022 coins: the",
+        "Token-2022 program."
       ],
       "discriminator": [
         208,
@@ -224,6 +231,9 @@
         },
         {
           "name": "mint",
+          "docs": [
+            "Classic SPL or Token-2022 mint (`coin.token_2022`)."
+          ],
           "relations": [
             "coin"
           ]
@@ -252,60 +262,10 @@
         },
         {
           "name": "vault_token_a",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "vault"
-              },
-              {
-                "kind": "account",
-                "path": "token_program"
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "docs": [
+            "receives the token A side of the fee claim, which is always 0 (fees are SOL only)."
+          ],
+          "writable": true
         },
         {
           "name": "fee_account",
@@ -496,7 +456,9 @@
     {
       "name": "launch",
       "docs": [
-        "Create a coin: mint, immutable metadata, and block 0 of the dig."
+        "Create a coin: mint, immutable metadata, and block 0 of the dig. Pass Token-2022 as",
+        "`token_program` for a Token-2022 mint with its metadata in the mint (the default in the",
+        "SDK), or the classic token program for a classic mint with Metaplex metadata."
       ],
       "discriminator": [
         153,
@@ -536,8 +498,9 @@
         {
           "name": "mint",
           "docs": [
-            "Fresh keypair, signs the transaction. Classic SPL mint, 6 decimals, mint authority =",
-            "the coin PDA, no freeze authority."
+            "Fresh keypair, signs the transaction. Created here: 6 decimals, mint authority = the coin",
+            "PDA, no freeze authority. Token-2022 (metadata pointer + immutable token metadata in the",
+            "mint) or classic SPL (immutable Metaplex metadata), following `token_program`."
           ],
           "writable": true,
           "signer": true
@@ -595,6 +558,9 @@
         },
         {
           "name": "metadata",
+          "docs": [
+            "Token-2022 mints (kept so the account list stays the same)."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -702,7 +668,9 @@
         },
         {
           "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "docs": [
+            "Token-2022 or the classic token program."
+          ]
         },
         {
           "name": "system_program",
@@ -723,7 +691,8 @@
     {
       "name": "open",
       "docs": [
-        "Permissionless after the dig: create and lock the Meteora pool."
+        "Permissionless after the dig: create and lock the Meteora pool. Optional remaining",
+        "account: the coin's launcher (writable), to get the unused open reserve back right away."
       ],
       "discriminator": [
         228,
@@ -739,7 +708,7 @@
         {
           "name": "cranker",
           "docs": [
-            "Pays rent for the vault's two associated token accounts and 1 lamport of wSOL."
+            "Pays only the transaction fee (writable for compatibility with existing clients)."
           ],
           "writable": true,
           "signer": true
@@ -768,6 +737,9 @@
         },
         {
           "name": "mint",
+          "docs": [
+            "Classic SPL or Token-2022 mint (`coin.token_2022`)."
+          ],
           "writable": true,
           "relations": [
             "coin"
@@ -797,117 +769,17 @@
         },
         {
           "name": "vault_token_a",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "vault"
-              },
-              {
-                "kind": "account",
-                "path": "token_program"
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "docs": [
+            "vault; the ATA program checks the address."
+          ],
+          "writable": true
         },
         {
           "name": "vault_wsol",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "vault"
-              },
-              {
-                "kind": "account",
-                "path": "token_program"
-              },
-              {
-                "kind": "account",
-                "path": "native_mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "docs": [
+            "the ATA program checks the address."
+          ],
+          "writable": true
         },
         {
           "name": "native_mint",
@@ -984,6 +856,9 @@
         },
         {
           "name": "token_2022_program",
+          "docs": [
+            "Token-2022 coins."
+          ],
           "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
         {
@@ -1043,7 +918,9 @@
         },
         {
           "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "docs": [
+            "The coin's token program (classic or Token-2022)."
+          ]
         }
       ],
       "args": []
@@ -1310,6 +1187,19 @@
       ]
     },
     {
+      "name": "ReserveRefunded",
+      "discriminator": [
+        22,
+        172,
+        14,
+        237,
+        133,
+        51,
+        158,
+        34
+      ]
+    },
+    {
       "name": "SharesSubmitted",
       "discriminator": [
         80,
@@ -1453,6 +1343,16 @@
       "code": 6025,
       "name": "BlockNotOpen",
       "msg": "This block is not open yet"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidTokenProgram",
+      "msg": "Wrong token program for this coin's mint"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidLauncher",
+      "msg": "Account is not this coin's launcher"
     }
   ],
   "types": [
@@ -1743,11 +1643,35 @@
             "type": "u64"
           },
           {
+            "name": "token_2022",
+            "docs": [
+              "The mint is a Token-2022 mint with its metadata in the mint (metadata pointer + token",
+              "metadata extensions). False: a classic SPL mint with Metaplex metadata (coins launched",
+              "before this field existed read false from what used to be reserved zero bytes)."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "open_reserve_lamports",
+            "docs": [
+              "Lamports the launcher parked in the vault for `open` (0 for coins launched before this",
+              "field existed: they parked `LEGACY_OPEN_RESERVE_LAMPORTS`)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reserve_refunded",
+            "docs": [
+              "Lamports `open` and `collect` have returned from the vault to the launcher so far."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "reserved",
             "type": {
               "array": [
                 "u8",
-                64
+                47
               ]
             }
           }
@@ -2066,6 +1990,29 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReserveRefunded",
+      "docs": [
+        "Unused open reserve returned from the coin's vault to its launcher (in `open` or `collect`)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "launcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }

@@ -67,3 +67,11 @@ pub struct FeesCollected {
     pub to_launcher: u64,
     pub to_treasury: u64,
 }
+
+/// Unused open reserve returned from the coin's vault to its launcher (in `open` or `collect`).
+#[event]
+pub struct ReserveRefunded {
+    pub coin: Pubkey,
+    pub launcher: Pubkey,
+    pub amount: u64,
+}
