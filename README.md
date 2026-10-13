@@ -35,8 +35,9 @@ program/
     constants.rs      seeds, supply, defaults, external ids
     state.rs          Config, Coin (+ block state machine), Miner, FeeSchedule
     mining.rs         share hash, retarget, rewards, sqrt price math (+ unit tests)
+    funds.rs          open reserve sizing and the refunds to the launcher (+ unit test)
     cp_amm.rs         hand-written CPI into Meteora DAMM v2
-    metadata.rs       hand-written CPI into Metaplex CreateMetadataAccountV3
+    metadata.rs       hand-written CPI into Metaplex CreateMetadataAccountV3 (classic mints only)
     events.rs
     instructions/     admin, launch, submit, crank, open, claim (+ seal), collect
   sdk/                TypeScript SDK (ESM) + test-vectors.json
@@ -46,7 +47,7 @@ program/
 
 | | value |
 |---|---|
-| total supply | 1,000,000,000 (6 decimals); a classic SPL mint, no freeze authority, immutable Metaplex metadata |
+| total supply | 1,000,000,000 (6 decimals), no freeze authority. Default: a **Token-2022 mint with its metadata in the mint** (metadata pointer + token metadata extensions, both immutable). A classic SPL mint with immutable Metaplex metadata is still available (pass the classic token program to `launch`). |
 | mined (opening) supply | 20% = 200,000,000 |
 | pool supply | 80% = 800,000,000, deposited single-sided at open. About 0.001 token of rounding is burned. |
 | dev allocation | none |
@@ -59,10 +60,12 @@ program/
 | opening market cap | 30 SOL fully diluted by default (config `default_open_fdv_lamports`). The launcher may pick 10–1,000 SOL. |
 | pool fee | 25% at open, minus 3% every 30 s, reaching 1% after 4 minutes (Meteora linear time scheduler). Fees are taken in SOL only. |
 | fee split | Meteora keeps 20% of each trading fee. Our locked position gets 80%, and `collect` pays 80% of that to the launcher and 20% to the treasury. |
-| launch fee | 0.05 SOL to the treasury |
-| open reserve | the launcher parks 0.035 SOL in the coin's vault PDA, which pays Meteora pool rent (0.0165 SOL measured at today's mainnet rent of 5,080 lamports/byte; ~0.0225 at the old 6,960) |
+| launch fee | config `launch_fee_lamports` to the treasury: **0.005 SOL on mainnet** since 2026-10-13 (`update_config`; init default 0.05) |
+| open reserve | priced at launch from the Rent sysvar (`funds::open_reserve`): every account `open` creates (cp-amm pool, position, position NFT mint and account, both pool token vaults, the vault's coin and wSOL token accounts) + 1 lamport of wSOL + one token-account rent kept for `collect` + a 0.001 SOL margin. **0.021991 SOL** for a Token-2022 coin at today's mainnet rent (5,080 lamports/byte). `open` returns the unused part (0.002488 SOL: the margin and the wSOL account, which `open` closes) to the launcher; 0.001488 SOL stays in the vault for `collect`. |
 
-**Launcher cost per launch:** about 0.112 SOL in total (measured in the e2e test at today's mainnet rent). That is the 0.05 fee, the 0.035 reserve, coin account rent (~0.0123 for 2,290 bytes), mint rent, metadata rent, and any Metaplex fee.
+**Launcher cost per launch (measured in the e2e test at today's mainnet rent, 0.005 SOL fee):** **0.041783 SOL** upfront including the 10,000-lamport two-signature tx fee: 0.005 fee + 0.012283 coin account rent (2,290 bytes) + ~0.0025–0.0027 mint rent (318 bytes + name + symbol + uri; 0.002499 for a 364-byte mint) + 0.021991 reserve. 0.002488 comes back at `open`, so the net is **~0.0393 SOL**. Before this change it was 0.112 SOL (0.05 fee, a flat 0.035 reserve of which 0.0185 stayed stranded, Metaplex metadata rent 0.003734 + its 0.01 fee), and the `open` cranker paid ~0.003 SOL of token-account rent. A classic (Metaplex) launch now costs 0.054059 SOL upfront at the 0.005 fee.
+
+**Whoever calls `open` pays only the transaction fee.** The vault pays every rent from the reserve.
 
 **Miner cost:** one transaction fee per submission of up to 8 shares (5,000 lamports plus any priority fee). The first submission also pays ~0.00137 SOL of miner-account rent (today's mainnet rent), which comes back at claim.
 
@@ -155,9 +158,10 @@ Accounts: `admin (s)`, `config (w)`.
 
 ### `launch(args: { name, symbol, uri, dig_minutes: 5|10|15, open_fdv_lamports: u64 (0 = default) })`
 
-1. Creates the mint. It must be a fresh keypair that signs the transaction: 6 decimals, mint authority = Coin PDA, no freeze authority.
-2. Creates immutable Metaplex metadata. Name ≤ 32 bytes, symbol ≤ 10 bytes, uri ≤ 200 bytes.
-3. Pays the launch fee to the treasury and the open reserve to the vault.
+1. Pays the launch fee to the treasury and the open reserve (`funds::open_reserve` at the current rent) to the vault.
+2. Creates the mint. It must be a fresh keypair that signs the transaction: 6 decimals, mint authority = Coin PDA, no freeze authority. Name ≤ 32 bytes, symbol ≤ 10 bytes, uri ≤ 200 bytes.
+   - `token_program` = Token-2022 (the SDK default): the mint gets the metadata pointer extension (pointing at the mint itself, no authority) and the token metadata extension (name, symbol, uri), whose update authority is then removed, so it can never change. No Metaplex account is created. Meteora cp-amm accepts these two extensions without a token badge (`is_permissionless_supported_mint`).
+   - `token_program` = classic SPL Token: a classic mint plus immutable Metaplex metadata (update authority = Coin PDA), as before.
 4. Opens block 0 with a challenge built from the current slot hash.
 
 The dig starts immediately and lasts `dig_minutes`. No tokens exist yet.
@@ -202,8 +206,8 @@ Accounts: `coin (w)`, `slot_hashes`.
 
 Permissionless, once the last block's window has passed. It runs the lazy close first, so no separate crank is needed.
 
-1. Mints 800,000,000 to the vault's coin ATA.
-2. Funds the vault's wSOL ATA with 1 lamport, which cp-amm requires. The cranker pays this and the rent for the two ATAs.
+1. Creates the vault's coin ATA (under the coin's token program) and wSOL ATA, paid by the vault.
+2. Mints 800,000,000 to the vault's coin ATA, and funds the vault's wSOL ATA with 1 lamport from the vault, which cp-amm requires.
 3. CPI `initialize_customizable_pool`:
    - coin / wSOL
    - `sqrt_price = sqrt_min_price = sqrt(open_fdv / 1e15 lamports per raw unit)` in Q64.64, `sqrt_max_price = MAX`
@@ -213,18 +217,22 @@ Permissionless, once the last block's window has passed. It runs the lazy close 
    - The vault PDA is the payer and creator. The position NFT mint is our PDA.
 4. CPI `permanent_lock_position(liquidity)`. All of the liquidity is locked forever.
 5. Burns the ~0.001-token rounding remainder.
-6. Sets state to `OPENED`.
+6. Closes the (now empty) wSOL ATA back into the vault.
+7. If the coin's launcher is passed as the first remaining account (writable), sends everything in the vault above one token-account rent to it (`ReserveRefunded`). Otherwise that happens at the next `collect`.
+8. Sets state to `OPENED`.
 
-Compute limit: `COMPUTE_UNITS.open` (330k; measured 231k–261k).
+The cranker pays only the transaction fee.
 
-Accounts: `cranker (w,s)`, `coin (w)`, `mint (w)`, `vault (w)`, `vault_token_a (w)`, `vault_wsol (w)`, `native_mint`, `position_nft_mint (w)`, `position_nft_account (w)`, `pool (w)`, `position (w)`, `token_a_vault (w)`, `token_b_vault (w)`, `pool_authority`, `event_authority`, `cp_amm_program`, `slot_hashes`, `token_program`, `token_2022_program`, `associated_token_program`, `system_program`.
+Compute limit: `COMPUTE_UNITS.open` (330k; measured 229k–261k).
+
+Accounts: `cranker (w,s)`, `coin (w)`, `mint (w)`, `vault (w)`, `vault_token_a (w)`, `vault_wsol (w)`, `native_mint`, `position_nft_mint (w)`, `position_nft_account (w)`, `pool (w)`, `position (w)`, `token_a_vault (w)`, `token_b_vault (w)`, `pool_authority`, `event_authority`, `cp_amm_program`, `slot_hashes`, `token_program`, `token_2022_program`, `associated_token_program`, `system_program`, then optionally `launcher (w)`. `token_program` is always the classic program (wSOL); the coin's own program is `token_2022_program` for Token-2022 coins.
 
 ### `claim()`
 
 Permissionless, after `open` only. Nobody holds a token before the pool exists, so nobody can create a rival pool first.
 
 1. Settles the miner's last block.
-2. Mints `pending` to the beneficiary's ATA, which is created if needed and paid by `payer`.
+2. Mints `pending` to the beneficiary's ATA (under the coin's token program; 170 bytes for Token-2022), which is created if needed and paid by `payer`.
 3. Closes the miner account and sends its rent to whoever paid it.
 
 Accounts: `payer (w,s)`, `coin (w)`, `mint (w)`, `beneficiary`, `miner (w)`, `rent_payer (w)`, `beneficiary_ata (w)`, `token_program`, `associated_token_program`, `system_program`.
@@ -236,11 +244,11 @@ Permissionless crank.
 1. Creates a temporary wSOL account at `["fee", coin]`, paid from the vault.
 2. CPI `claim_position_fee`, signed by the vault.
 3. Closes the temporary account into the vault, which unwraps the fees.
-4. Sends `launcher_fee_bps` (80%) of the fee amount to the launcher and the rest to `config.treasury`, in native SOL.
+4. Sends `launcher_fee_bps` (80%) of the fee amount to the launcher and the rest to `config.treasury`, in native SOL. Anything else in the vault above one token-account rent (unused reserve) goes to the launcher in the same transfer (`ReserveRefunded`). This also returns what coins launched before this change left in their vaults (0.0185 SOL on the mainnet canary).
 
 Each recipient must be able to hold the transfer. A totally empty wallet can't receive less than ~0.00089 SOL, so `collect` fails until fees build up. Nothing is lost: uncollected fees stay in the position.
 
-Accounts: `cranker (s)`, `config`, `coin (w)`, `mint`, `vault (w)`, `vault_token_a (w)`, `fee_account (w)`, `native_mint`, `launcher (w)`, `treasury (w)`, `pool_authority`, `pool`, `position (w)`, `token_a_vault (w)`, `token_b_vault (w)`, `position_nft_account`, `event_authority`, `cp_amm_program`, `token_program`, `system_program`.
+Accounts: `cranker (s)`, `config`, `coin (w)`, `mint`, `vault (w)`, `vault_token_a (w)`, `fee_account (w)`, `native_mint`, `launcher (w)`, `treasury (w)`, `pool_authority`, `pool`, `position (w)`, `token_a_vault (w)`, `token_b_vault (w)`, `position_nft_account`, `event_authority`, `cp_amm_program`, `token_program`, `system_program`, then the Token-2022 program for Token-2022 coins.
 
 ### `seal()`
 
@@ -311,7 +319,12 @@ All accounts use anchor borsh: an 8-byte discriminator followed by the fields in
 | | block_shares | [u32; 90] |
 | | block_targets | [u64; 90]: target each closed block was mined at. Expected hashes = shares × 2^64 / target (`blockHashes` in the SDK). |
 | | miners_total | u64: lifetime count of distinct miners (miner accounts close at claim) |
-| | reserved | [u8; 64] |
+| | token_2022 | bool: Token-2022 mint with metadata in the mint (false for coins launched before this field: classic + Metaplex) |
+| | open_reserve_lamports | u64: what the launcher parked for `open` (0 before this field: a flat 0.035 SOL) |
+| | reserve_refunded | u64: lamports `open` / `collect` returned to the launcher |
+| | reserved | [u8; 47] |
+
+The three new fields took 17 of the 64 reserved bytes, so the account is still 2,290 bytes and older coins decode unchanged (their bytes were zero).
 
 ### Miner (141 bytes)
 
@@ -329,7 +342,7 @@ All accounts use anchor borsh: an 8-byte discriminator followed by the fields in
 
 ### Events
 
-`CoinLaunched`, `SharesSubmitted` (beneficiary, block, accepted nonces, challenge, target), `BlockAdvanced` (new challenge + target), `CoinOpened`, `Claimed`, `FeesCollected`. Discriminators are in `sdk/src/constants.ts` as `EVENT_DISC`; `parseEvents(logs)` in the SDK decodes them from transaction logs. Program error codes are in `ERRORS`.
+`CoinLaunched`, `SharesSubmitted` (beneficiary, block, accepted nonces, challenge, target), `BlockAdvanced` (new challenge + target), `CoinOpened`, `Claimed`, `FeesCollected`, `ReserveRefunded` (coin, launcher, amount). Discriminators are in `sdk/src/constants.ts` as `EVENT_DISC`; `parseEvents(logs)` in the SDK decodes them from transaction logs. Program error codes are in `ERRORS`.
 
 For live mining, subscribe to the Coin account (`onAccountChange`) and read `current_block`, `challenge` and `target`.
 
