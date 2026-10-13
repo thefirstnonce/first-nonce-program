@@ -5,7 +5,7 @@ Source of the Solana program deployed at [`GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryV
 The deployed binary is built reproducibly with `solana-verify` (see `.github/workflows/verifiable-build.yml`), so anyone can check it matches this code:
 
 ```bash
-solana-verify verify-from-repo -um --program-id GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryVa98TGs3 https://github.com/thefirstnonce/first-nonce-program --library-name first_nonce
+solana-verify verify-from-repo -um --program-id GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryVa98TGs3 https://github.com/thefirstnonce/first-nonce-program --library-name first_nonce --base-image solanafoundation/solana-verifiable-build@sha256:2e0b78f44ee76612e9260c7c988570c5e14de6fbd93e0ab07115ec7054473b4f
 ```
 
 Unaudited. The program is upgradeable; the upgrade authority is `Ayq6tRC3atGKuKP6wdt4fX1fSBe1wnBrzMAkCxMatCbG`. This repo contains only the on-chain program and its IDL (`idl/first_nonce.json`).
