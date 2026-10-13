@@ -1,0 +1,23 @@
+name: verifiable-build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install solana-verify
+        run: cargo install solana-verify --locked
+      - name: Reproducible build (docker)
+        run: solana-verify build --library-name first_nonce
+      - name: Executable hash
+        run: solana-verify get-executable-hash target/deploy/first_nonce.so | tee executable-hash.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: first_nonce-verifiable
+          path: |
+            target/deploy/first_nonce.so
+            executable-hash.txt

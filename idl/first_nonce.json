@@ -1,0 +1,2211 @@
+{
+  "address": "GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryVa98TGs3",
+  "metadata": {
+    "name": "first_nonce",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "The First Nonce: a launchpad where a coin's opening supply is mined with proof-of-work, then opens on a Meteora DAMM v2 pool"
+  },
+  "instructions": [
+    {
+      "name": "claim",
+      "docs": [
+        "Permissionless after open: mint a miner's tokens to the beneficiary."
+      ],
+      "discriminator": [
+        62,
+        198,
+        214,
+        193,
+        213,
+        159,
+        108,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "coin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin.mint",
+                "account": "Coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "beneficiary"
+        },
+        {
+          "name": "miner",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              },
+              {
+                "kind": "account",
+                "path": "beneficiary"
+              }
+            ]
+          }
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "beneficiary_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "beneficiary"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "collect",
+      "docs": [
+        "Permissionless: claim pool fees and split them launcher / treasury."
+      ],
+      "discriminator": [
+        208,
+        47,
+        194,
+        155,
+        17,
+        98,
+        82,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "coin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin.mint",
+                "account": "Coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token_a",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "fee_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "native_mint",
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "launcher",
+          "writable": true,
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "treasury",
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
+        },
+        {
+          "name": "pool",
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "token_a_vault",
+          "writable": true
+        },
+        {
+          "name": "token_b_vault",
+          "writable": true
+        },
+        {
+          "name": "position_nft_account"
+        },
+        {
+          "name": "event_authority",
+          "address": "3rmHSu74h1ZcmAisVcWerTCiRDQbUrBKmcwptYGjHfet"
+        },
+        {
+          "name": "cp_amm_program",
+          "address": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "crank",
+      "docs": [
+        "Permissionless: close finished blocks and open the next one."
+      ],
+      "discriminator": [
+        0,
+        232,
+        3,
+        195,
+        124,
+        117,
+        105,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "coin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin.mint",
+                "account": "Coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_config",
+      "docs": [
+        "Upgrade authority only: create the global config."
+      ],
+      "discriminator": [
+        23,
+        235,
+        115,
+        232,
+        168,
+        96,
+        1,
+        231
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "pubkey"
+        },
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "launch",
+      "docs": [
+        "Create a coin: mint, immutable metadata, and block 0 of the dig."
+      ],
+      "discriminator": [
+        153,
+        241,
+        93,
+        225,
+        22,
+        69,
+        74,
+        61
+      ],
+      "accounts": [
+        {
+          "name": "launcher",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "Fresh keypair, signs the transaction. Classic SPL mint, 6 decimals, mint authority =",
+            "the coin PDA, no freeze authority."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "coin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "System-owned PDA. Holds the open reserve, owns the pool-side token accounts and the",
+            "locked Meteora position."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true
+        },
+        {
+          "name": "metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  11,
+                  112,
+                  101,
+                  177,
+                  227,
+                  209,
+                  124,
+                  69,
+                  56,
+                  157,
+                  82,
+                  127,
+                  107,
+                  4,
+                  195,
+                  205,
+                  88,
+                  184,
+                  108,
+                  115,
+                  26,
+                  160,
+                  253,
+                  181,
+                  73,
+                  182,
+                  209,
+                  188,
+                  3,
+                  248,
+                  41,
+                  70
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                11,
+                112,
+                101,
+                177,
+                227,
+                209,
+                124,
+                69,
+                56,
+                157,
+                82,
+                127,
+                107,
+                4,
+                195,
+                205,
+                88,
+                184,
+                108,
+                115,
+                26,
+                160,
+                253,
+                181,
+                73,
+                182,
+                209,
+                188,
+                3,
+                248,
+                41,
+                70
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "LaunchArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "open",
+      "docs": [
+        "Permissionless after the dig: create and lock the Meteora pool."
+      ],
+      "discriminator": [
+        228,
+        220,
+        155,
+        71,
+        199,
+        189,
+        60,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Pays rent for the vault's two associated token accounts and 1 lamport of wSOL."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "coin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin.mint",
+                "account": "Coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token_a",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vault_wsol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "native_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "native_mint",
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "position_nft_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position_nft_account",
+          "writable": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true
+        },
+        {
+          "name": "token_a_vault",
+          "writable": true
+        },
+        {
+          "name": "token_b_vault",
+          "writable": true
+        },
+        {
+          "name": "pool_authority",
+          "address": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC"
+        },
+        {
+          "name": "event_authority",
+          "address": "3rmHSu74h1ZcmAisVcWerTCiRDQbUrBKmcwptYGjHfet"
+        },
+        {
+          "name": "cp_amm_program",
+          "address": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG"
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "seal",
+      "docs": [
+        "Permissionless once everything is claimed: drop the mint authority."
+      ],
+      "discriminator": [
+        102,
+        202,
+        171,
+        163,
+        27,
+        152,
+        105,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "coin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin.mint",
+                "account": "Coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "relations": [
+            "coin"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "submit_shares",
+      "docs": [
+        "Submit up to 8 proof-of-work shares for one beneficiary in the open block."
+      ],
+      "discriminator": [
+        210,
+        17,
+        68,
+        163,
+        179,
+        50,
+        155,
+        41
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "docs": [
+            "Pays the transaction and, on the first submission, the miner account rent (refunded",
+            "at claim). Does not have to be the beneficiary: shares can only ever credit the",
+            "beneficiary whose key is inside the hash."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "coin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin.mint",
+                "account": "Coin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "beneficiary"
+        },
+        {
+          "name": "miner",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coin"
+              },
+              {
+                "kind": "account",
+                "path": "beneficiary"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "block",
+          "type": "u32"
+        },
+        {
+          "name": "nonces",
+          "type": {
+            "vec": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_config",
+      "docs": [
+        "Admin: change treasury, fees, pause, difficulty defaults, price range, fee schedule."
+      ],
+      "discriminator": [
+        29,
+        158,
+        252,
+        191,
+        10,
+        83,
+        219,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "UpdateConfigArgs"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Coin",
+      "discriminator": [
+        215,
+        195,
+        53,
+        238,
+        217,
+        196,
+        213,
+        51
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "Miner",
+      "discriminator": [
+        223,
+        113,
+        15,
+        54,
+        123,
+        122,
+        140,
+        100
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BlockAdvanced",
+      "discriminator": [
+        152,
+        66,
+        235,
+        6,
+        215,
+        49,
+        143,
+        47
+      ]
+    },
+    {
+      "name": "Claimed",
+      "discriminator": [
+        217,
+        192,
+        123,
+        72,
+        108,
+        150,
+        248,
+        33
+      ]
+    },
+    {
+      "name": "CoinLaunched",
+      "discriminator": [
+        169,
+        65,
+        49,
+        61,
+        3,
+        18,
+        32,
+        179
+      ]
+    },
+    {
+      "name": "CoinOpened",
+      "discriminator": [
+        172,
+        186,
+        85,
+        215,
+        84,
+        152,
+        175,
+        222
+      ]
+    },
+    {
+      "name": "FeesCollected",
+      "discriminator": [
+        233,
+        23,
+        117,
+        225,
+        107,
+        178,
+        254,
+        8
+      ]
+    },
+    {
+      "name": "SharesSubmitted",
+      "discriminator": [
+        80,
+        243,
+        136,
+        172,
+        92,
+        59,
+        243,
+        132
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Paused",
+      "msg": "New launches are paused"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidDigLength",
+      "msg": "Dig length must be 5, 10 or 15 minutes"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidName",
+      "msg": "Name is empty or longer than 32 bytes"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidSymbol",
+      "msg": "Symbol is empty or longer than 10 bytes"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidUri",
+      "msg": "Uri is longer than 200 bytes"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidOpenFdv",
+      "msg": "Opening market cap is outside the allowed range"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidFeeBps",
+      "msg": "Fee split must be at most 10000 bps"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidFeeSchedule",
+      "msg": "Invalid pool fee schedule"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidShareTarget",
+      "msg": "Share target must be between 1 and 10000"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidStartTarget",
+      "msg": "Start target must be non-zero"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidFdvRange",
+      "msg": "Opening market cap range is invalid"
+    },
+    {
+      "code": 6011,
+      "name": "NoNonces",
+      "msg": "No nonces in this submission"
+    },
+    {
+      "code": 6012,
+      "name": "TooManyNonces",
+      "msg": "At most 8 nonces per submission"
+    },
+    {
+      "code": 6013,
+      "name": "NonceNotIncreasing",
+      "msg": "Nonces must be strictly increasing per miner per block"
+    },
+    {
+      "code": 6014,
+      "name": "ShareAboveTarget",
+      "msg": "A submitted hash does not meet the share target"
+    },
+    {
+      "code": 6015,
+      "name": "DigNotOver",
+      "msg": "The dig is not over yet"
+    },
+    {
+      "code": 6016,
+      "name": "NotOpen",
+      "msg": "Coin is not open for trading yet"
+    },
+    {
+      "code": 6017,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidSlotHashes",
+      "msg": "SlotHashes sysvar data is malformed"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidSqrtPrice",
+      "msg": "Sqrt price is outside the Meteora range"
+    },
+    {
+      "code": 6020,
+      "name": "UnclaimedTokens",
+      "msg": "Some mined tokens are still unclaimed"
+    },
+    {
+      "code": 6021,
+      "name": "Serialization",
+      "msg": "Serialization failed"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidTokenAccount",
+      "msg": "Account is not a valid token account"
+    },
+    {
+      "code": 6023,
+      "name": "Unauthorized",
+      "msg": "Signer is not allowed to do this"
+    },
+    {
+      "code": 6024,
+      "name": "BlockClosed",
+      "msg": "This block is closed: its shares no longer count"
+    },
+    {
+      "code": 6025,
+      "name": "BlockNotOpen",
+      "msg": "This block is not open yet"
+    }
+  ],
+  "types": [
+    {
+      "name": "BlockAdvanced",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "current_block",
+            "docs": [
+              "Index of the block that is now open (== total_blocks when the dig ended)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "target",
+            "type": "u64"
+          },
+          {
+            "name": "challenge",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ended",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Claimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "beneficiary",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Coin",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "launcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "state",
+            "type": "u8"
+          },
+          {
+            "name": "dig_minutes",
+            "type": "u8"
+          },
+          {
+            "name": "total_blocks",
+            "type": "u16"
+          },
+          {
+            "name": "launcher_fee_bps",
+            "docs": [
+              "Snapshot of config at launch."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "share_target",
+            "type": "u32"
+          },
+          {
+            "name": "open_fdv_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "fee_schedule",
+            "type": {
+              "defined": {
+                "name": "FeeSchedule"
+              }
+            }
+          },
+          {
+            "name": "launched_at",
+            "type": "i64"
+          },
+          {
+            "name": "dig_start",
+            "type": "i64"
+          },
+          {
+            "name": "dig_end",
+            "type": "i64"
+          },
+          {
+            "name": "current_block",
+            "docs": [
+              "Index of the open block (== total_blocks once the dig is over)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "block_open_ts",
+            "docs": [
+              "Unix time the open block's challenge was set."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "challenge",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "target",
+            "docs": [
+              "A share is valid if u64::from_be_bytes(share[0..8]) < target."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "shares_this_block",
+            "type": "u64"
+          },
+          {
+            "name": "carry",
+            "docs": [
+              "Reward rolled forward from empty blocks and rounding dust."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "allocated",
+            "docs": [
+              "Tokens assigned to miners through tokens_per_share (sum over blocks of tps * shares)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "claimed",
+            "docs": [
+              "Tokens minted to miners by `claim`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "unmined",
+            "docs": [
+              "Opening-supply tokens that were never earned (empty final blocks + dust). Never minted."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "opened_at",
+            "type": "i64"
+          },
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "position_nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool_liquidity",
+            "type": "u128"
+          },
+          {
+            "name": "pool_sqrt_price",
+            "type": "u128"
+          },
+          {
+            "name": "pool_tokens",
+            "docs": [
+              "Coin tokens actually deposited in the pool (rest of POOL_SUPPLY is burned)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "collects",
+            "type": "u64"
+          },
+          {
+            "name": "fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "fees_to_launcher",
+            "type": "u64"
+          },
+          {
+            "name": "fees_to_treasury",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_per_share",
+            "docs": [
+              "Tokens (base units) per share for each closed block."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                90
+              ]
+            }
+          },
+          {
+            "name": "block_shares",
+            "docs": [
+              "Share count of each closed block."
+            ],
+            "type": {
+              "array": [
+                "u32",
+                90
+              ]
+            }
+          },
+          {
+            "name": "block_targets",
+            "docs": [
+              "Share target each closed block was mined at (empty blocks included). The open block's",
+              "target is `target`. Expected hashes for block b = block_shares[b] * 2^64 / block_targets[b]."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                90
+              ]
+            }
+          },
+          {
+            "name": "miners_total",
+            "docs": [
+              "Lifetime count of distinct miners (beneficiaries) that had shares accepted. Miner",
+              "accounts close at claim, so counting accounts undercounts."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reserved",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoinLaunched",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "launcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "dig_minutes",
+            "type": "u8"
+          },
+          {
+            "name": "total_blocks",
+            "type": "u16"
+          },
+          {
+            "name": "dig_start",
+            "type": "i64"
+          },
+          {
+            "name": "dig_end",
+            "type": "i64"
+          },
+          {
+            "name": "open_fdv_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "start_target",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoinOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "sqrt_price",
+            "type": "u128"
+          },
+          {
+            "name": "liquidity",
+            "type": "u128"
+          },
+          {
+            "name": "pool_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "burned",
+            "type": "u64"
+          },
+          {
+            "name": "allocated",
+            "type": "u64"
+          },
+          {
+            "name": "unmined",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Receives launch fees and the platform share of pool fees."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "launch_fee_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "launcher_fee_bps",
+            "docs": [
+              "Launcher share of collected pool fees, in bps. The rest goes to the treasury."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "share_target",
+            "docs": [
+              "Target shares per 10 s block (S)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "start_target",
+            "docs": [
+              "Share target (u64, compared against the first 8 bytes of the share hash) for block 0 of a new coin."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "default_open_fdv_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "min_open_fdv_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "max_open_fdv_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "fee_schedule",
+            "type": {
+              "defined": {
+                "name": "FeeSchedule"
+              }
+            }
+          },
+          {
+            "name": "coins_launched",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "reserved",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeSchedule",
+      "docs": [
+        "Meteora DAMM v2 base fee, time-scheduler mode (linear). Numerators are out of",
+        "1,000,000,000. Fee at time t after open:",
+        "`cliff_fee_numerator - min(t / period_frequency, number_of_period) * reduction_factor`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cliff_fee_numerator",
+            "type": "u64"
+          },
+          {
+            "name": "number_of_period",
+            "type": "u16"
+          },
+          {
+            "name": "period_frequency",
+            "type": "u64"
+          },
+          {
+            "name": "reduction_factor",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeesCollected",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "to_launcher",
+            "type": "u64"
+          },
+          {
+            "name": "to_treasury",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LaunchArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          },
+          {
+            "name": "dig_minutes",
+            "docs": [
+              "5, 10 or 15."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "open_fdv_lamports",
+            "docs": [
+              "Fully diluted value at open in lamports. 0 = config default."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Miner",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "beneficiary",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_payer",
+            "docs": [
+              "Paid the rent for this account; refunded when the account is closed at claim."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "block",
+            "docs": [
+              "Block of the miner's open share run, NO_BLOCK if none."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "block_shares",
+            "type": "u64"
+          },
+          {
+            "name": "next_nonce",
+            "docs": [
+              "Smallest nonce still accepted in `block` (last accepted nonce + 1)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending",
+            "docs": [
+              "Settled, unclaimed tokens (base units)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SharesSubmitted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coin",
+            "type": "pubkey"
+          },
+          {
+            "name": "beneficiary",
+            "type": "pubkey"
+          },
+          {
+            "name": "block",
+            "type": "u32"
+          },
+          {
+            "name": "accepted",
+            "docs": [
+              "Number of shares accepted (== nonces.len(); stale submissions fail instead)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "block_shares",
+            "docs": [
+              "Shares in this block so far, this submission included."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "nonces",
+            "docs": [
+              "The accepted nonces, so anyone can recompute each share hash."
+            ],
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "challenge",
+            "docs": [
+              "Challenge and target the shares were checked against."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "target",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "treasury",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "launch_fee_lamports",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "launcher_fee_bps",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "paused",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "share_target",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "start_target",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "default_open_fdv_lamports",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "min_open_fdv_lamports",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "max_open_fdv_lamports",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "fee_schedule",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "FeeSchedule"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

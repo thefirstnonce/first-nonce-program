@@ -1,0 +1,23 @@
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+first_nonce = "GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryVa98TGs3"
+
+[programs.devnet]
+first_nonce = "GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryVa98TGs3"
+
+[programs.mainnet]
+first_nonce = "GUW16mLqFWfGjD5AFFSwDxQyGAFSDvPdEbryVa98TGs3"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test"
+
+[hooks]
